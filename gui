@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'bundler/setup'
+require 'benchmark'
 Bundler.require(:default)
 
 require_relative 'htm/htm'
@@ -10,6 +11,13 @@ CURSED_CONFIG = {
     32.chr => -> { step },
     'f'    => -> { step(10) },
     'F'    => -> { step(100) }
+  },
+
+  functions: {
+    step: ->(n=1) do
+      time = Benchmark.realtime { n.times { @data_obj.step } }
+      @step_time = time/n
+    end
   },
 
   header: {
@@ -172,5 +180,5 @@ Cursed::WM.new(HTM.new(pattern: PATTERN), CURSED_CONFIG).start
 #   File.open("report#{i}.txt", 'w') { |f| p.new(result).print(f, min_percent: 2) }
 # end
 
-printer = RubyProf::MultiPrinter.new(result)
-printer.print(path: '.', profile: 'profile')
+# printer = RubyProf::MultiPrinter.new(result)
+# printer.print(path: '.', profile: 'profile')
