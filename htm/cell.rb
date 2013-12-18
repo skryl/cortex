@@ -48,7 +48,7 @@ class Cell
   def prev_predicted_next?; predicted_next(1) end
 
 # reset cell state
-  
+
   def reset!
     @active = false
     @learning = false
@@ -81,7 +81,7 @@ class Cell
   end
 
 # activation
-  
+
   def activate_and_check_learning
     if predicted?
       @active = true
@@ -94,7 +94,7 @@ class Cell
   end
 
   def get_active_segment
-    @active_segments.sort { |s1,s2| 
+    @active_segments.sort { |s1,s2|
       if s1.sequence? ^ s2.sequence?
         s1.sequence? ? -1 : 1
       else
@@ -118,15 +118,15 @@ class Cell
   def reinforce_learning_segment
     @learning_segment.sequence!
     use_global_time(1) { @learning_segment.add_new_synapses(learning_cells) }
-    unless @segments.include?(@learning_segment) || @learning_segment.synapses.count == 0 
-      @segments << @learning_segment 
+    unless @segments.include?(@learning_segment) || @learning_segment.synapses.count == 0
+      @segments << @learning_segment
     end
   end
 
   def add_predictive_segment
     predictive_segment = DistalDendrite.new
     use_global_time(2) { predictive_segment.add_new_synapses(learning_cells) }
-    @segments << @learning_segment 
+    @segments << @learning_segment
   end
 
   def best_matching_segment

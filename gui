@@ -5,7 +5,7 @@ Bundler.require(:default)
 
 require_relative 'htm/htm'
 
-CURSED_CONFIG = { 
+CURSED_CONFIG = {
 
   keybindings: {
     32.chr => -> { step },
@@ -15,7 +15,7 @@ CURSED_CONFIG = {
 
   functions: {
     step: ->(n=1) do
-      time = Benchmark.realtime { n.times { @data_obj.step } }
+      time = Benchmark.realtime { n.times { @data.step } }
       @step_time = time/n
     end
   },
@@ -24,25 +24,25 @@ CURSED_CONFIG = {
     status: {
       mode:       -> { mode.upcase },
       screen:     -> { active_screen.title },
-      cycles:     -> { data_obj.cycles },
+      cycles:     -> { data.cycles },
       step_time:  -> { step_time.round(2) },
-      inputs:     -> { data_obj.num_inputs },
-      columns:    -> { data_obj.num_columns },
-      cells:      -> { data_obj.num_cells} },
+      inputs:     -> { data.num_inputs },
+      columns:    -> { data.num_columns },
+      cells:      -> { data.num_cells} },
 
     columns: {
       input_size:      Column::INPUT_SIZE,
       min_overlap:     ProximalDendrite::MIN_OVERLAP,
-      iradius:         -> { data_obj.inhibition_radius },
+      iradius:         -> { data.inhibition_radius },
       des_local_act:   -> { Column::DESIRED_LOCAL_ACTIVITY },
-      active_columns:  -> { data_obj.active_columns.count },
-      col_act_ratio:   -> { data_obj.column_activity_ratio } },
+      active_columns:  -> { data.active_columns.count },
+      col_act_ratio:   -> { data.column_activity_ratio } },
 
     cells: {
-      learning_cells:   -> { data_obj.learning_cells.count },
-      predicted_cells:  -> { data_obj.predicted_cells.count },
-      active_cells:     -> { data_obj.active_cells.count },
-      cell_act_ratio:   -> { data_obj.cell_activity_ratio } }
+      learning_cells:   -> { data.learning_cells.count },
+      predicted_cells:  -> { data.predicted_cells.count },
+      active_cells:     -> { data.active_cells.count },
+      cell_act_ratio:   -> { data.cell_activity_ratio } }
   },
 
   screens: [
@@ -50,22 +50,22 @@ CURSED_CONFIG = {
       { title: :activity, visible: true, instruments: [
 
         {title: :activity, fg: :red, bg: :blue, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.active? ? '#' : ''}]},
 
         {title: :raw_overlap, fg: :yellow, bg: :green, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
-         streamfs: [lambda { |c| c.raw_overlap }]}, 
+         dataf:    lambda { |htm| htm.columns },
+         streamfs: [lambda { |c| c.raw_overlap }]},
 
         {title: :inputs, fg: :red, bg: :green, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.inputs }, 
+         dataf:    lambda { |htm| htm.inputs },
          streamfs: [lambda { |c| c.active? ? '#' : '' }]}
       ]},
       { title: :overlap, visible: true, instruments: [
 
         {title: :overlap, fg: :green, bg: :yellow, type: :full, cell_size: 5, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
-         streamfs: [lambda { |c| c.overlap }]}, 
+         dataf:    lambda { |htm| htm.columns },
+         streamfs: [lambda { |c| c.overlap }]},
 
         {title: :min_local_activity, fg: :blue, bg: :green, type: :full, cell_size: 5, visible: true,
          dataf:    lambda { |htm| htm.columns },
@@ -80,83 +80,83 @@ CURSED_CONFIG = {
          streamfs: [lambda { |c| c.active_count }]},
 
         {title: :overlap_count, fg: :yellow, bg: :green, type: :full, cell_size: 3, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.overlap_count }]},
 
         {title: :boost, fg: :red, bg: :yellow, type: :full, cell_size: 6, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.boost }]}
       ]},
       { title: :boost, visible: true, instruments: [
         {title: :active_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 4, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.active_duty_cycle }]},
 
         {title: :overlap_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 4, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.overlap_duty_cycle }]},
 
         {title: :min_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 6, visible: true,
-         dataf:    lambda { |htm| htm.columns }, 
+         dataf:    lambda { |htm| htm.columns },
          streamfs: [lambda { |c| c.min_duty_cycle }]}
 
       ]}
-    ]}, 
+    ]},
 
     { title: 3, panels: [
       { title: :synapse_indices, visible: true, instruments: [
         {title: :synapse_indices, fg: :green, bg: :yellow, type: :minimal, visible: true,
-         dataf:    lambda { |htm| htm.columns.map(&:synapses)}, 
-         streamfs: [lambda { |s| s.input.index }, 
-                    lambda { |s| s.active? ? '#' : '' }]} 
-      ]}, 
+         dataf:    lambda { |htm| htm.columns.map(&:synapses)},
+         streamfs: [lambda { |s| s.input.index },
+                    lambda { |s| s.active? ? '#' : '' }]}
+      ]},
       { title: :synapse_permancence, visible: true, instruments: [
         {title: :synapse_perm, fg: :green, bg: :yellow, type: :minimal, visible: true,
-         dataf:    lambda { |htm| htm.columns.map(&:synapses)}, 
-         streamfs: [lambda { |s| perm = (s.permanence * 100).to_i; perm > 49 ? '#' : perm }, 
-                    lambda { |s| s.active? ? '#' : '' }]} 
-      ]} 
+         dataf:    lambda { |htm| htm.columns.map(&:synapses)},
+         streamfs: [lambda { |s| perm = (s.permanence * 100).to_i; perm > 49 ? '#' : perm },
+                    lambda { |s| s.active? ? '#' : '' }]}
+      ]}
     ]},
 
     { title: 4, panels: [
       { title: :cells, visible: true, instruments: [
         {title: :segments, fg: :yellow, bg: :blue, type: :minimal, cell_size: 4, visible: true,
-         dataf:    lambda { |htm| htm.cells.map(&:segments) }, 
-         streamfs: [lambda { |s| s.synapses.count }]} 
+         dataf:    lambda { |htm| htm.cells.map(&:segments) },
+         streamfs: [lambda { |s| s.synapses.count }]}
       ]}
-    ]}, 
+    ]},
 
     { title: 5, panels: [
       { title: :cells, visible: true, instruments: [
         {title: :learning, fg: :green, bg: :blue, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.cells }, 
+         dataf:    lambda { |htm| htm.cells },
          streamfs: [lambda { |c| c.learning? ? '#' : ''}]},
         {title: :segments, fg: :yellow, bg: :blue, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.cells }, 
+         dataf:    lambda { |htm| htm.cells },
          streamfs: [lambda { |c| c.segments.count }]}
       ]}
-    ]}, 
+    ]},
 
     { title: 6, panels: [
       { title: :cells, visible: true, instruments: [
         {title: :activity, fg: :red, bg: :blue, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.cells }, 
+         dataf:    lambda { |htm| htm.cells },
          streamfs: [lambda { |c| c.active? ? '#' : ''}]},
         {title: :predictions, fg: :magenta, bg: :blue, type: :full, visible: true,
-         dataf:    lambda { |htm| htm.cells }, 
+         dataf:    lambda { |htm| htm.cells },
          streamfs: [lambda { |c| c.prev_predicted? ? '#' : ''}]}
       ]}
-    ]} 
+    ]}
 
 ]}
 
 
 PATTERN = [[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
-           [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]] 
+           [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]]
 
 # PATTERN = [[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
-#            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], 
-#            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], 
+#            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+#            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
 #            [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]]
 
 # PATTERN = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -166,16 +166,16 @@ PATTERN = [[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,
 #            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
 
 # RubyProf.start
-Cursed::WM.new(HTM.new(pattern: PATTERN), CURSED_CONFIG).start
+Cursed::WM.new(HTM.new(pattern: PATTERN), CURSED_CONFIG).run
 # result = RubyProf.stop
 
 # PRINTERS = [
-#   RubyProf::FlatPrinter, 
+#   RubyProf::FlatPrinter,
 #   RubyProf::FlatPrinterWithLineNumbers,
 #   RubyProf::GraphPrinter,
 #   RubyProf::GraphHtmlPrinter
 # ]
-# 
+#
 # PRINTERS.each.with_index do |p, i|
 #   File.open("report#{i}.txt", 'w') { |f| p.new(result).print(f, min_percent: 2) }
 # end
