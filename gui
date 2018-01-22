@@ -8,19 +8,22 @@ require_relative 'htm/htm'
 PATTERN = [[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]]
 
+CORTEX = HTM.new(pattern: PATTERN)
+
 CURSED_CONFIG = {
   keybindings: {
-    32.chr => -> { step },
+    ' '    => -> { step },
     'f'    => -> { step(10) },
-    'F'    => -> { step(100) }
+    'F'    => -> { step(100) },
+    'm'    => -> { menu_mode? ? set_mode!(:normal) : set_mode!(:menu) }
   },
 
   variables: {
-    htm:      lambda { @htm ||= HTM.new(pattern: PATTERN) },
-    columns:  lambda { htm.columns },
-    synapses: lambda { htm.columns.flat_map(&:synapses)},
-    segments: lambda { htm.cells.map(&:segments) },
-    cells:    lambda { htm.cells },
+    htm:      -> { CORTEX },
+    columns:  -> { htm.columns },
+    synapses: -> { htm.columns.flat_map(&:synapses)},
+    segments: -> { htm.cells.map(&:segments) },
+    cells:    -> { htm.cells },
 
     get_step_time: ->{ @step_time ||=0 },
     set_step_time: ->(time) { @step_time = time },
@@ -28,119 +31,148 @@ CURSED_CONFIG = {
     step: ->(n=1) {
       time = Benchmark.realtime { n.times { htm.step } }
       set_step_time(time/n)
-    }
+    },
+
+    mode: -> { @mode ||= :normal },
+    menu_mode?: -> { @mode == :menu },
+
+    set_mode!: ->(mode) {
+      menu = find_container(:menu)
+      case mode
+      when :menu
+        menu.show!
+      when :normal
+        menu.hide!
+      end
+      @mode = mode
+    },
+
+    hidden_children_for_container: -> {
+      in_focus.hidden_children.map.with_index{ |c,i| "[#{i}](#{c.id})" }.join(' ')
+    },
+
+    styles: {
+      panel:  { border: true},
+      screen: { visible: false, border: true, flow: :horizontal },
+      head:   { border: true, height: 5, bc: :blue, fg: :yellow },
+      body:   { border: true, exclusive: true, top:    -> { parent.children.first.top + parent.children.first.height },
+                                               height: -> { effective_height - parent.children.first.height }},
+      menu:   { visible: false, border: true, bc: :blue, fg: :yellow, top: -> { parent.top + parent.height - 4 }, height: 4 }
+    },
   },
 
-  header: { title: 'Cortex 0.01', buffer: lambda {
-    { status: {
-        mode:            mode.upcase,
-        screen:          active_screen.title,
-        cycles:          htm.cycles,
-        step_time:       get_step_time.round(2),
-        inputs:          htm.num_inputs,
-        columns:         htm.num_columns,
-        cells:           htm.num_cells },
-      columns: {
-        input_size:      Column::INPUT_SIZE,
-        min_overlap:     ProximalDendrite::MIN_OVERLAP,
-        iradius:         htm.inhibition_radius,
-        des_local_act:   Column::DESIRED_LOCAL_ACTIVITY,
-        active_columns:  htm.active_columns.count,
-        col_act_ratio:   htm.column_activity_ratio },
-      cells: {
-        learning_cells:  htm.learning_cells.count,
-        predicted_cells: htm.predicted_cells.count,
-        active_cells:    htm.active_cells.count,
-        cell_act_ratio:  htm.cell_activity_ratio } }}
-  },
+  layout: [
+    { id: 'Cortex 0.01', class: :head, content: -> {
+      { status: {
+          mode:            mode.upcase,
+          screen:          nil,
+          cycles:          htm.cycles,
+          step_time:       get_step_time.round(2),
+          inputs:          htm.num_inputs,
+          columns:         htm.num_columns,
+          cells:           htm.num_cells },
+        columns: {
+          input_size:      Column::INPUT_SIZE,
+          min_overlap:     ProximalDendrite::MIN_OVERLAP,
+          iradius:         htm.inhibition_radius,
+          des_local_act:   Column::DESIRED_LOCAL_ACTIVITY,
+          active_columns:  htm.active_columns.count,
+          col_act_ratio:   htm.column_activity_ratio },
+        cells: {
+          learning_cells:  htm.learning_cells.count,
+          predicted_cells: htm.predicted_cells.count,
+          active_cells:    htm.active_cells.count,
+          cell_act_ratio:  htm.cell_activity_ratio } }}
+    },
 
-  screens: [
-    { title: 1, panels: [
-      { title: :activity, visible: true, instruments: [
+    { id: :body, class: :body, layout: [
+      { id: 1, class: :screen, layout: [
+        { id: :activity, class: :panel, layout: [
 
-        {title: :activity, fg: :red, bg: :blue, type: :full, visible: true,
-         streams: [lambda { columns.map { |c| c.active? ? '#' : ''}} ]},
+          {type: :instrument, id: :activity, class: :instrument, fg: :red, bg: :blue,
+           streams: [-> { columns.map { |c| c.active? ? '#' : ''}} ]},
 
-        {title: :raw_overlap, fg: :yellow, bg: :green, type: :full, visible: true,
-         streams: [lambda { columns.map { |c| c.raw_overlap }} ]},
+          {type: :instrument, id: :raw_overlap, class: :instrument, fg: :yellow, bg: :green,
+           streams: [-> { columns.map { |c| c.raw_overlap }} ]},
 
-        {title: :inputs, fg: :red, bg: :green, type: :full, visible: true,
-         streams: [lambda { columns.map { |c| c.active? ? '#' : '' }} ]}
+          {type: :instrument, id: :inputs, class: :instrument, fg: :red, bg: :green,
+           streams: [-> { columns.map { |c| c.active? ? '#' : '' }} ]}
+        ]},
+        { id: :overlap, class: :panel, layout: [
+
+          {type: :instrument, id: :overlap, class: :instrument, fg: :green, bg: :yellow, cell_size: 5,
+           streams: [-> { columns.map { |c| c.overlap }} ]},
+
+          {type: :instrument, id: :min_local_activity, class: :instrument, fg: :blue, bg: :green, cell_size: 5,
+           streams: [-> { columns.map { |c| c.min_local_activity }} ]}
+        ]}
       ]},
-      { title: :overlap, visible: true, instruments: [
 
-        {title: :overlap, fg: :green, bg: :yellow, type: :full, cell_size: 5, visible: true,
-         streams: [lambda { columns.map { |c| c.overlap }} ]},
+      { id: 2, class: :screen, layout: [
+        { id: :counts, class: :panel, layout: [
+          {type: :instrument, id: :active_count, class: :instrument, fg: :yellow, bg: :green, cell_size: 3,
+           streams: [-> { columns.map { |c| c.active_count }} ]},
 
-        {title: :min_local_activity, fg: :blue, bg: :green, type: :full, cell_size: 5, visible: true,
-         streams: [lambda { columns.map { |c| c.min_local_activity }} ]}
-      ]}
-    ]},
+          {type: :instrument, id: :overlap_count, class: :instrument, fg: :yellow, bg: :green, cell_size: 3,
+           streams: [-> { columns.map { |c| c.overlap_count }} ]},
 
-    { title: 2, panels: [
-      { title: :counts, visible: true, instruments: [
-        {title: :active_count, fg: :yellow, bg: :green, type: :full, cell_size: 3, visible: true,
-         streams: [lambda { columns.map { |c| c.active_count }} ]},
+          {type: :instrument, id: :boost, class: :instrument, fg: :red, bg: :yellow, cell_size: 6,
+           streams: [-> { columns.map { |c| c.boost }} ]}
+        ]},
+        { id: :boost, class: :panel, layout: [
+          {type: :instrument, id: :active_duty_cycle, class: :instrument, fg: :green, bg: :yellow, cell_size: 4,
+           streams: [-> { columns.map { |c| c.active_duty_cycle }} ]},
 
-        {title: :overlap_count, fg: :yellow, bg: :green, type: :full, cell_size: 3, visible: true,
-         streams: [lambda { columns.map { |c| c.overlap_count }} ]},
+          {type: :instrument, id: :overlap_duty_cycle, class: :instrument, fg: :green, bg: :yellow, cell_size: 4,
+           streams: [-> { columns.map { |c| c.overlap_duty_cycle }} ]},
 
-        {title: :boost, fg: :red, bg: :yellow, type: :full, cell_size: 6, visible: true,
-         streams: [lambda { columns.map { |c| c.boost }} ]}
+          {type: :instrument, id: :min_duty_cycle, class: :instrument, fg: :green, bg: :yellow, cell_size: 6,
+           streams: [-> { columns.map { |c| c.min_duty_cycle }} ]}
+
+        ]}
       ]},
-      { title: :boost, visible: true, instruments: [
-        {title: :active_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 4, visible: true,
-         streams: [lambda { columns.map { |c| c.active_duty_cycle }} ]},
 
-        {title: :overlap_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 4, visible: true,
-         streams: [lambda { columns.map { |c| c.overlap_duty_cycle }} ]},
-
-        {title: :min_duty_cycle, fg: :green, bg: :yellow, type: :full, cell_size: 6, visible: true,
-         streams: [lambda { columns.map { |c| c.min_duty_cycle }} ]}
-
-      ]}
-    ]},
-
-    { title: 3, panels: [
-      { title: :synapse_indices, visible: true, instruments: [
-        {title: :synapse_indices, fg: :green, bg: :yellow, type: :minimal, visible: true,
-         streams: [lambda { synapses.map { |s| s.input.index }},
-                   lambda { synapses.map { |s| s.active? ? '#' : '' }} ]}
+      { id: 3, class: :screen, layout: [
+        { id: :synapse_indices, class: :panel, layout: [
+          {type: :instrument, id: :synapse_indices, class: :instrument, fg: :green, bg: :yellow, grid: :minimal,
+           streams: [-> { synapses.map { |s| s.input.index }},
+                     -> { synapses.map { |s| s.active? ? '#' : '' }} ]}
+        ]},
+        { id: :synapse_permancence, class: :panel, layout: [
+          {type: :instrument, id: :synapse_perm, class: :instrument, fg: :green, bg: :yellow, grid: :minimal,
+           streams: [-> { synapses.map { |s| perm = (s.permanence * 100).to_i; perm > 49 ? '#' : perm }},
+                     -> { synapses.map { |s| s.active? ? '#' : '' }} ]}
+        ]}
       ]},
-      { title: :synapse_permancence, visible: true, instruments: [
-        {title: :synapse_perm, fg: :green, bg: :yellow, type: :minimal, visible: true,
-         streams: [lambda { synapses.map { |s| perm = (s.permanence * 100).to_i; perm > 49 ? '#' : perm }},
-                   lambda { synapses.map { |s| s.active? ? '#' : '' }} ]}
+
+      { id: 4, class: :screen, layout: [
+        { id: :cells, class: :panel, layout: [
+          {type: :instrument, id: :segments, class: :instrument, fg: :yellow, bg: :blue, grid: :minimal, cell_size: 4,
+           streams: [-> { segments.map { |s| s.synapses.count }} ]}
+        ]}
+      ]},
+
+      { id: 5, class: :screen, layout: [
+        { id: :cells, class: :panel, layout: [
+          {type: :instrument, id: :learning, class: :instrument, fg: :green, bg: :blue,
+           streams: [-> { cells.map { |c| c.learning? ? '#' : ''}} ]},
+          {type: :instrument, id: :segments, class: :instrument, fg: :yellow, bg: :blue,
+           streams: [-> { cells.map { |c| c.segments.count }} ]}
+        ]}
+      ]},
+
+      { id: 6, class: :screen, layout: [
+        { id: :cells, class: :panel, layout: [
+          {type: :instrument, id: :activity, class: :instrument, fg: :red, bg: :blue,
+           streams: [-> { cells.map { |c| c.active? ? '#' : ''}} ]},
+          {type: :instrument, id: :predictions, class: :instrument, fg: :magenta, bg: :blue,
+           streams: [-> { cells.map { |c| c.prev_predicted? ? '#' : ''}} ]}
+        ]}
       ]}
     ]},
 
-    # { title: 4, panels: [
-    #   { title: :cells, visible: true, instruments: [
-    #     {title: :segments, fg: :yellow, bg: :blue, type: :minimal, cell_size: 4, visible: true,
-    #      streams: [lambda { segments.map { |s| s.synapses.count }} ]}
-    #   ]}
-    # ]},
-
-    { title: 5, panels: [
-      { title: :cells, visible: true, instruments: [
-        {title: :learning, fg: :green, bg: :blue, type: :full, visible: true,
-         streams: [lambda { cells.map { |c| c.learning? ? '#' : ''}} ]},
-        {title: :segments, fg: :yellow, bg: :blue, type: :full, visible: true,
-         streams: [lambda { cells.map { |c| c.segments.count }} ]}
-      ]}
-    ]},
-
-    { title: 6, panels: [
-      { title: :cells, visible: true, instruments: [
-        {title: :activity, fg: :red, bg: :blue, type: :full, visible: true,
-         streams: [lambda { cells.map { |c| c.active? ? '#' : ''}} ]},
-        {title: :predictions, fg: :magenta, bg: :blue, type: :full, visible: true,
-         streams: [lambda { cells.map { |c| c.prev_predicted? ? '#' : ''}} ]}
-      ]}
-    ]}
-
-]}
-
+    { id: :menu, class: :menu, content: -> { "HIDDEN: #{hidden_children_for_container}" }}
+  ]}
 
 Cursed::WM.new(CURSED_CONFIG).run
 
